@@ -1,3 +1,5 @@
-sqlite3
 fastapi
 uvicorn
+SQLAlchemy[asyncio]>=1.4
+asyncpg
+aiosqlite

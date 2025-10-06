@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   postgres:
     image: postgres:15
@@ -10,5 +9,28 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+
+  dev:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    image: recipes-dev
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://recipeuser:recipepass@postgres:5432/recipesdb
+    ports:
+      - "3000:3000"
+      - "8000:8000"
+    working_dir: /app
+    command: ["/bin/bash", "-c", "/usr/local/bin/wait-for-db.sh /bin/bash -c 'cd /app/backend && uvicorn api_server:app --host 0.0.0.0 --port 8000 & cd /app/frontend && npm run dev -- --host 0.0.0.0'" ]
+    volumes:
+      - ..:/app:cached
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/recipes || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      - postgres
 volumes:
   pgdata:
