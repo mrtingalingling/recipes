@@ -3,8 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .db import get_session, engine, Base
-from .models import Recipe
+from db import get_session, engine, Base
+from models import Recipe
 
 app = FastAPI()
 
