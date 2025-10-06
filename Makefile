@@ -1,7 +1,20 @@
 
-.PHONY: dev up db clean wait-for-postgres
+.PHONY: build dev up db clean wait-for-postgres
 
-dev: up wait-for-postgres
+# Build the dev image (using docker compose build dev). This is separate so
+# you can rebuild only when Dockerfile or dependencies change.
+build:
+	@echo "Building dev image (recipes-dev) via docker compose..."
+	@if docker compose -f backend/docker-compose.yml version >/dev/null 2>&1; then \
+		docker compose -f backend/docker-compose.yml build dev || (echo "docker compose build failed, falling back to docker build" && docker build -f .devcontainer/Dockerfile -t recipes-dev .); \
+	elif command -v docker-compose >/dev/null 2>&1; then \
+		docker-compose -f backend/docker-compose.yml build dev || (echo "docker-compose build failed, falling back to docker build" && docker build -f .devcontainer/Dockerfile -t recipes-dev .); \
+	else \
+		echo "No docker compose CLI found, using docker build"; \
+		docker build -f .devcontainer/Dockerfile -t recipes-dev .; \
+	fi
+
+dev: build up wait-for-postgres
 	@echo "Starting dev container (frontend + backend)"
 	# Use docker compose to start the dev service so compose manages network and lifecycle
 	@echo "Starting 'dev' service via docker compose..."
@@ -49,3 +62,8 @@ dev-logs:
 	else \
 		docker-compose -f backend/docker-compose.yml logs -f dev postgres; \
 	fi
+
+
+.PHONY: smoke-test
+smoke-test:
+	@./scripts/smoke-test.sh
