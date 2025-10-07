@@ -47,6 +47,11 @@ RUN pip install --no-cache-dir -r backend/requirements.txt
 # Copy the rest of your application's source code
 COPY . .
 
+# Ensure the concurrent startup script is copied and made executable
+# Source path is relative to the build context (project root)
+COPY scripts/start-dev-servers.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/start-dev-servers.sh
+
 # Copy wait-for-db script and make it executable
 COPY scripts/wait-for-db.sh /usr/local/bin/wait-for-db.sh
 RUN chmod +x /usr/local/bin/wait-for-db.sh

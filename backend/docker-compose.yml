@@ -17,25 +17,30 @@ services:
 
   dev:
     build:
-      context: ..
+      context: .. # Points to the project root
       dockerfile: .devcontainer/Dockerfile
     image: recipes-dev
     environment:
       - DATABASE_URL=postgresql+asyncpg://recipeuser:recipepass@postgres:5432/recipesdb
     ports:
-      - "3000:3000"
+      # Vite runs on 5173, so we map external 3000 to internal 5173.
+      - "3000:5173"
       - "8000:8000"
     working_dir: /app
-    command: ["/bin/bash", "-c", "/usr/local/bin/wait-for-db.sh /bin/bash -c 'cd /app/backend && uvicorn api_server:app --host 0.0.0.0 --port 8000 & cd /app/frontend && npm run dev -- --host 0.0.0.0'" ]
+    # Executes the wait script, which in turn executes the concurrent server script
+    command: ["/bin/bash", "-c", "/usr/local/bin/wait-for-db.sh /usr/local/bin/start-dev-servers.sh"]
     volumes:
-      - ..:/app:cached
+      - ..:/app:cached # Mounts project root to /app in container
     healthcheck:
+      # This check targets the API server (backend) on port 8000
       test: ["CMD-SHELL", "curl -fsS http://localhost:8000/recipes || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+
 volumes:
   pgdata:
