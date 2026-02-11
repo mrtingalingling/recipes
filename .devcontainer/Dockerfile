@@ -15,6 +15,8 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     curl \
     gnupg \
     lsb-release \
+    docker.io \
+    docker-compose \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -32,36 +34,30 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
 # Install pnpm globally
 RUN npm install -g pnpm@latest-10
 
-# NOTE: We do NOT install Docker or docker-compose inside the devcontainer image.
-# Installing Docker in a container often causes package conflicts and is unnecessary
-# for development. Use the host to run `docker-compose` (see scripts/dev_start.sh).
+# NOTE: Docker and docker-compose are now installed to enable Docker-in-Docker (DinD).
+# The host's Docker socket is mounted to provide access to the Docker daemon.
 
-# Copy only the backend requirements.txt first (build context is repository root)
-# This allows Docker to cache this layer if requirements.txt doesn't change
-# Copies to /app/backend/requirements.txt (relative to WORKDIR)
-COPY backend/requirements.txt backend/requirements.txt
-
-# Install backend Python requirements
-RUN pip install --no-cache-dir -r backend/requirements.txt
-
-# Copy the rest of your application's source code
+# Copy project root to /app
 COPY . .
 
-# Ensure the concurrent startup script is copied and made executable
-# Source path is relative to the build context (project root)
-COPY scripts/start-dev-servers.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/start-dev-servers.sh
+# Install backend Python requirements
+RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 
-# Copy wait-for-db script and make it executable
-COPY scripts/wait-for-db.sh /usr/local/bin/wait-for-db.sh
-RUN chmod +x /usr/local/bin/wait-for-db.sh
+# Ensure the startup scripts are executable
+RUN chmod +x /app/scripts/start-dev-servers.sh
+RUN chmod +x /app/scripts/wait-for-db.sh
+
+# Make scripts available in PATH
+RUN cp /app/scripts/start-dev-servers.sh /usr/local/bin/ && \
+    cp /app/scripts/wait-for-db.sh /usr/local/bin/
 
 # Install frontend dependencies
 WORKDIR /app/frontend
 RUN npm install
 
-# Start backend (uvicorn) and frontend dev server when the container runs.
+# Configure Docker socket permissions
+# The docker socket will be mounted from the host
+RUN groupadd -f docker 2>/dev/null || true
+
+# Reset working directory to app root
 WORKDIR /app
-# Use the wait-for-db entrypoint to wait for DB, then run the default CMD
-ENTRYPOINT ["/usr/local/bin/wait-for-db.sh"]
-CMD ["/bin/bash", "-c", "cd backend && uvicorn api_server:app --host 0.0.0.0 --port 8000 &\ncd ../frontend && npm run dev -- --host 0.0.0.0"]

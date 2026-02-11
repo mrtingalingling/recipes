@@ -31,6 +31,7 @@ services:
     command: ["/bin/bash", "-c", "/usr/local/bin/wait-for-db.sh /usr/local/bin/start-dev-servers.sh"]
     volumes:
       - ..:/app:cached # Mounts project root to /app in container
+      - /var/run/docker.sock:/var/run/docker.sock # Docker socket for DinD
     healthcheck:
       # This check targets the API server (backend) on port 8000
       test: ["CMD-SHELL", "curl -fsS http://localhost:8000/recipes || exit 1"]
