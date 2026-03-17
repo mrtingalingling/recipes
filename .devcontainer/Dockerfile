@@ -71,3 +71,6 @@ RUN groupadd -f docker 2>/dev/null || true
 
 # Reset working directory to app root
 WORKDIR /app
+
+# Default command: just keep container running (no auto-start of services)
+CMD ["sleep", "infinity"]
