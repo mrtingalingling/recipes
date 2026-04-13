@@ -67,3 +67,26 @@ dev-logs:
 .PHONY: smoke-test
 smoke-test:
 	@./scripts/smoke-test.sh
+
+# MCP Server targets
+.PHONY: mcp-server
+mcp-server:
+	@echo "Starting MCP Server..."
+	python -m backend.mcp.server
+
+.PHONY: mcp-dev
+mcp-dev:
+	@echo "Starting MCP Server in development mode (with reload)..."
+	python -m uvicorn backend.mcp.server:app --reload --host localhost --port 3001
+
+# API client test
+.PHONY: api-test
+api-test:
+	@echo "Running API client tests..."
+	python -m pytest tests/test_api_client.py -v
+
+# Test utilities
+.PHONY: test-validators
+test-validators:
+	@echo "Testing validation utilities..."
+	python -m pytest tests/test_validators.py -v
