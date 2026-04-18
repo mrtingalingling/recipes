@@ -1,0 +1,76 @@
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: recipeuser
+      POSTGRES_PASSWORD: recipepass
+      POSTGRES_DB: recipesdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U recipeuser -d recipesdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  dev:
+    build:
+      context: .. # Points to the project root
+      dockerfile: .devcontainer/Dockerfile
+    image: recipes-dev
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://recipeuser:recipepass@postgres:5432/recipesdb
+      - NODE_OPTIONS=--max-old-space-size=512
+      - PYTHONUNBUFFERED=1
+    ports:
+      # Vite runs on 5173, so we map external 3000 to internal 5173.
+      - "3000:5173"
+      - "8000:8000"
+    working_dir: /app
+    # Executes the wait script, which in turn executes the concurrent server script
+    command: ["/bin/bash", "-c", "/usr/local/bin/wait-for-db.sh /usr/local/bin/start-dev-servers.sh"]
+    volumes:
+      - ..:/app:cached # Mounts project root to /app in container
+      - /var/run/docker.sock:/var/run/docker.sock # Docker socket for DinD
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+    healthcheck:
+      # This check targets the API server (backend) on port 8000
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/recipes || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://recipeuser:recipepass@postgres:5432/recipesdb
+    ports:
+      - "8001:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3000"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
